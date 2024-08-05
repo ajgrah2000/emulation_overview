@@ -1,0 +1,87 @@
+grid-columns:2
+ROM Resource material: |md
+  # Cartridge information:
+  Cart Information
+    - Author: Kevin Horton
+    - [here](http://kevtris.org/files/sizes.txt)
+|
+ROM Resource material.link: http://kevtris.org/files/sizes.txt
+
+Atari2600 ROM Addressing:|md
+  # Address range
+  The Atari can only address up to a maximum of 4k of ROM. Yet cartridges exist of up to 64k (as in super crazy, could never use that much memory type size). So how is it done?
+
+  One advantage of cartridges is that they themselves are hardware devices.  The simplest cartridges up to 4k in size, don't need any tricks, every byte is readable.
+  Cartridges over 4k need a little bit of hardware magic, which is known as 'bank switching'
+|
+
+Cartridge Layouts: {
+    Basic Cartridge: {
+        Bank 1 - 2-4k
+    }
+    Bank Switched Cartridge: {
+        Bank 1 (4k): {
+                grid-rows:3
+                0x0 - 0xFF8 (Raw bytes for bank 1)
+                0xFF9 (Switch To Bank 1)
+                0xFFA (Switch To Bank 2)
+        }
+        Bank 2 - 4k: {
+                grid-rows:3
+                0x0 - 0xFF8 (Raw bytes for bank 2)
+                0xFF9 (Switch To Bank 1)
+                0xFFA (Switch To Bank 2)
+        }
+    }
+}
+
+Switch Register Explanation:|md
+  # Bank Switch Registers
+  When a write to one of the bank switch registers occurs (for a 'standard' 8k cartridge).
+  The bank 'seen' in the 4k addressable bytes changes (essentially on the next read).
+|
+
+direction: up
+Cartridge Layouts.Bank Switched Cartridge.Bank 1 (4k).0xFFA (Switch To Bank 2) <- Switch Register Explanation
+Cartridge Layouts.Bank Switched Cartridge.Bank 2 - 4k.0xFFA (Switch To Bank 2) <- Switch Register Explanation
+
+
+Atari2600 ROM Addressing.near: top-center
+Switch Register Explanation.near: bottom-center
+
+How Do You Know Which Cartridge?
+How Do You Know Which Cartridge?.link: layers.How Do You Know Which Cartridge
+
+cartridge_ram:|md
+# RAM?
+You never said anything about RAM?
+Correct, I didn't.  Yet another magic option in a rom.  The first 'X-Bytes' are RAM addresses instead of ROM, if that's how they decided to make the cartridge.
+Although for any normal cartridge, it isn't impacted by bank switching.
+|
+cartridge_ram -> Cartridge Code Snippet
+Cartridge Code Snippet:|`rust
+    fn read(&mut self, address: u16) -> u8 {
+        // Mask the 'address' with the bank size (so the highest address lines are ignored).
+        let address = address & (self.bank_size - 1);
+        if (self.ram_size > 0) && (address < 2 * self.ram_size) && (address >= self.ram_size) {
+            self.ram[(address & self.ram_addr_mask) as usize]
+        } else {
+            // 0xFF8 == address: Last bank - 2
+            // 0xFF9 == address: Last bank - 1
+            // 0xFFA == address: Last bank
+            if self.num_banks > 1 && (((self.hot_swap + 1) - self.num_banks as u16) <= address) && ((self.hot_swap + 1) > address) {
+                self.current_bank = self.num_banks - ((self.hot_swap + 1) - address) as u8;
+            }
+
+            if !self.cartridge_banks.is_empty() {
+                self.cartridge_banks[self.current_bank as usize].data[address as usize]
+            } else {
+                0
+            }
+        }
+    }
+`|
+
+layers: {
+How Do You Know Which Cartridge: @../d2_images/atari2600_cartridge_formats.d2
+}

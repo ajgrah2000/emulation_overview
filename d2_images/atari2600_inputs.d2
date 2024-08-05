@@ -1,0 +1,66 @@
+Joysticks <-> Inputs.Input 4
+Joysticks <-> Inputs.Input 5
+Joysticks <-> Inputs.Switch A
+Joysticks <-> Inputs.Switch B
+
+Paddles:"" { style.fill: transparent 
+             style.stroke-width: 0}
+
+Paddles.Paddle 1 <-> Inputs.Input 0
+Paddles.Paddle 2 <-> Inputs.Input 1
+Paddles.Paddle 3 <-> Inputs.Input 2
+Paddles.Paddle 4 <-> Inputs.Input 3
+
+Inputs {
+  Input 0
+  Input 1
+  Input 2
+  Input 3
+  Input 4
+  Input 5
+  Switch A
+  Switch B
+}
+
+Code Snippets: {
+    style.fill: transparent
+    style.stroke-width: 0
+    near: bottom-center
+Keyboard Processing: |`rust
+    // Return 'true' if handled, otherwise 'false' (ie quit)
+     pub fn handle_events(event: event::Event, joystick: &mut Joystick) -> bool {
+         match event {
+             event::Event::Quit { .. } | event::Event::KeyDown { keycode: Some(UserInput::KEY_QUIT), .. } => return false,
+
+             event::Event::KeyDown { keycode: Some(UserInput::KEY_1_UP), .. } => {
+                 joystick.j1_up(true);
+             }
+             ...
+         }
+     }
+`|
+
+Joystic Input Register Updates: |`rust
+#[derive(Clone, Copy)]
+pub struct Joystick {
+    pub input: Input,
+}
+
+impl Joystick {
+    pub fn new() -> Self {
+        Self { input: Input::new() }
+    }
+
+    pub fn j1_up(&mut self, value: bool) {
+         Joystick::set_input(value, &mut self.input.swcha, 0x10);
+    }
+    ...
+}
+`|
+}
+
+
+Stella -> Inputs.Input 0
+Stella -> Inputs.Input 1
+Stella -> Inputs.Input 2
+Stella -> Inputs.Input 3

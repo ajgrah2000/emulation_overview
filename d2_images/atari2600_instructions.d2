@@ -1,0 +1,127 @@
+grid-rows: 4
+CPU: |md
+  # Atari 2600 CPU
+  - Launched in 1975.
+  - MOS Technology 6507.
+  - Motorola CPU, 8-bit, 56 instructions
+  - Version of the 6502, but with 28-pin Dual Inline Package, instead of 40-pins.
+
+  ## Other consumers of the 6502
+  - Apple II
+  - Nintendo Entertainment System
+  - Commadore 64 (discontinued in 1994)
+  - Atari Lynx
+  - BBC Micro
+|
+
+single_byte_instruction: |`rust
+      pub fn single_byte_instruction<R, W, I: Fn(&mut clocks::Clock, &mut pc_state::PcState, &mut memory::Memory, u8) -> u8>(clock: &mut clocks::Clock, pc_state: &mut pc_s    tate::PcState, memory: &mut memory::Memory, read: R, write: W, instruction: I)
+      where
+          R: Fn(&pc_state::PcState) -> u8,
+          W: Fn(&mut pc_state::PcState, u8),
+      {
+          clock.increment(pc_state::PcState::CYCLES_TO_CLOCK as u32);
+     
+          let data = read(pc_state);
+          let result = instruction(clock, pc_state, memory, data);
+          write(pc_state, result);
+     
+          clock.increment(pc_state::PcState::CYCLES_TO_CLOCK as u32);
+     
+          pc_state.increment_pc(1);
+      }
+`|
+
+pc_state_collection: |`rust
+    pub struct PcStateCollection<'a> {
+         pub clock: &'a mut clocks::Clock,
+         pub pc_state: &'a mut pc_state::PcState,
+         pub memory: &'a mut memory::Memory,
+     }
+`|
+
+nop: |`rust
+pub fn nop(clock: &mut clocks::Clock, pc_state: &mut pc_state::PcState, memory: &mut memory::Memory, data: u8) -> u8 {
+    data
+}
+`|
+
+matching: |`rust
+impl Instruction {
+    pub fn execute(op_code: u8, clock: &mut clocks::Clock, memory: &mut memory::Memory, pc_state: &mut pc_state::PcState, ports: &mut ports::Ports) {
+       ...
+       let mut op = |op_arg, addr| {
+            match (addr, op_arg) {
+                (Imp(r, w), o) => {
+                    instruction_set::single_byte_instruction(clock, pc_state, memory, read_fn(r), write_fn(w), op_fn(o));
+                    Ok(())
+                }
+
+                (read_null @ (IzxR | IzyR | ImmR | ZpR | ZpxR | ZpyR | IzyRD | AbsR | AbxR | AbyR | AbxRD | AbyRD), o) => {
+                    instruction_set::read_write_instruction(clock, pc_state, memory, addressing_fn(read_null), MEMORY_READ, MEMORY_NULL, op_fn(o));
+                    Ok(())
+                }
+                ...
+            }
+       }
+    }
+`|
+
+single_byte_instruction: |`rust
+      pub fn single_byte_instruction<R, W, I: Fn(&mut clocks::Clock, &mut pc_state::PcState, &mut memory::Memory, u8) -> u8>(clock: &mut clocks::Clock, pc_state: &mut pc_s    tate::PcState, memory: &mut memory::Memory, read: R, write: W, instruction: I)
+      where
+          R: Fn(&pc_state::PcState) -> u8,
+          W: Fn(&mut pc_state::PcState, u8),
+      {
+          clock.increment(pc_state::PcState::CYCLES_TO_CLOCK as u32);
+     
+          let data = read(pc_state);
+          let result = instruction(clock, pc_state, memory, data);
+          write(pc_state, result);
+     
+          clock.increment(pc_state::PcState::CYCLES_TO_CLOCK as u32);
+     
+          pc_state.increment_pc(1);
+      }
+`|
+
+syntactic_sugar:|`rust
+        if let Err(err) = match op_code & 0xF8 {
+            0x00 => low((Brk, None), (Or, IzxR), NA, (Slo, IzxW), (Nop, ZpR), (Or, ZpR), (Asl, ZpW), (Slo, ZpW)),
+            0x08 => low((Php, None), (Or, ImmR), (Asl, Imp(A, A)), NA, (Nop, AbsR), (Or, AbsR), (Asl, AbsW), (Slo, AbsW)),
+            0x10 => low(bpl, (Or, IzyRD), NA, (Slo, IzyW), (Nop, ZpxR), (Or, ZpxR), (Asl, ZpxW), (Slo, ZpxW)),
+            0x18 => low((Clc, Imp(N, N)), (Or, AbyRD), (Nop, Imp(N, N)), (Slo, AbyW), (Nop, AbxR), (Or, AbxRD), (Asl, AbxWD), (Slo, AbxW)),
+            ...
+        }
+`|
+
+direction: up
+connection -> syntactic_sugar
+connection -> real_op_code_table
+
+connection : |md 
+[Syntactic Sugar To match Op Table (if you squint)](https://www.masswerk.at/6502/6502_instruction_set.html)
+|
+connection.near: bottom-right
+
+real_op_code_table:|`md
+
+    |        | ‐0        | ‐1        | ‐2        | ‐3        | ‐4        | ‐5        | ‐6        | ‐7        | ‐8        | ‐9        | ‐A        | ‐B        | ‐C        | ‐D        | ‐E        | ‐F  |
+    | 0‐     | BRK impl  | ORA X,ind | ---       | ---       | ---       | ORA zpg   | ASL zpg   | ---       | PHP impl  | ORA #     | ASL A     | ---       | ---       | ORA abs   | ASL abs   | --- |
+    | 1‐     | BPL rel   | ORA ind,Y | ---       | ---       | ---       | ORA zpg,X | ASL zpg,X | ---       | CLC impl  | ORA abs,Y | ---       | ---       | ---       | ORA abs,X | ASL abs,X | --- |
+    | 2‐     | JSR abs   | AND X,ind | ---       | ---       | BIT zpg   | AND zpg   | ROL zpg   | ---       | PLP impl  | AND #     | ROL A     | ---       | BIT abs   | AND abs   | ROL abs   | --- |
+    | 3‐     | BMI rel   | AND ind,Y | ---       | ---       | ---       | AND zpg,X | ROL zpg,X | ---       | SEC impl  | AND abs,Y | ---       | ---       | ---       | AND abs,X | ROL abs,X | --- |
+    | 4‐     | RTI impl  | EOR X,ind | ---       | ---       | ---       | EOR zpg   | LSR zpg   | ---       | PHA impl  | EOR #     | LSR A     | ---       | JMP abs   | EOR abs   | LSR abs   | --- |
+    | 5‐     | BVC rel   | EOR ind,Y | ---       | ---       | ---       | EOR zpg,X | LSR zpg,X | ---       | CLI impl  | EOR abs,Y | ---       | ---       | ---       | EOR abs,X | LSR abs,X | --- |
+    | 6‐     | RTS impl  | ADC X,ind | ---       | ---       | ---       | ADC zpg   | ROR zpg   | ---       | PLA impl  | ADC #     | ROR A     | ---       | JMP ind   | ADC abs   | ROR abs   | --- |
+    | 7‐     | BVS rel   | ADC ind,Y | ---       | ---       | ---       | ADC zpg,X | ROR zpg,X | ---       | SEI impl  | ADC abs,Y | ---       | ---       | ---       | ADC abs,X | ROR abs,X | --- |
+    | 8‐     | ---       | STA X,ind | ---       | ---       | STY zpg   | STA zpg   | STX zpg   | ---       | DEY impl  | ---       | TXA impl  | ---       | STY abs   | STA abs   | STX abs   | --- |
+    | 9‐     | BCC rel   | STA ind,Y | ---       | ---       | STY zpg,X | STA zpg,X | STX zpg,Y | ---       | TYA impl  | STA abs,Y | TXS impl  | ---       | ---       | STA abs,X | ---       | --- |
+    | A‐     | LDY #     | LDA X,ind | LDX #     | ---       | LDY zpg   | LDA zpg   | LDX zpg   | ---       | TAY impl  | LDA #     | TAX impl  | ---       | LDY abs   | LDA abs   | LDX abs   | --- |
+    | B‐     | BCS rel   | LDA ind,Y | ---       | ---       | LDY zpg,X | LDA zpg,X | LDX zpg,Y | ---       | CLV impl  | LDA abs,Y | TSX impl  | ---       | LDY abs,X | LDA abs,X | LDX abs,Y | --- |
+    | C‐     | CPY #     | CMP X,ind | ---       | ---       | CPY zpg   | CMP zpg   | DEC zpg   | ---       | INY impl  | CMP #     | DEX impl  | ---       | CPY abs   | CMP abs   | DEC abs   | --- |
+    | D‐     | BNE rel   | CMP ind,Y | ---       | ---       | ---       | CMP zpg,X | DEC zpg,X | ---       | CLD impl  | CMP abs,Y | ---       | ---       | ---       | CMP abs,X | DEC abs,X | --- |
+    | E‐     | CPX #     | SBC X,ind | ---       | ---       | CPX zpg   | SBC zpg   | INC zpg   | ---       | impl      | SBC #     | NOP impl  | ---       | CPX abs   | SBC abs   | INC abs   | --- |
+    | F‐     | BEQ rel   | SBC ind,Y | ---       | ---       | ---       | SBC zpg,X | INC zpg,X | ---       | SED impl  | SBC abs,Y | ---       | ---       | ---       | SBC abs,X | INC abs,X | --- |
+.
+`|
