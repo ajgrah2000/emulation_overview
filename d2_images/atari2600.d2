@@ -1,0 +1,35 @@
+Atari 2600: {
+  Memory {
+  }
+  Audio {
+    TIA
+    TIA
+  }
+  Graphics
+  CPU {
+    link: layers.CPU
+    Clock
+    Registers
+    Instructions {
+        link: layers.Instructions
+    }
+  }
+  Inputs {
+  }
+  Inputs.link: layers.Inputs
+}
+
+Cartridge: {
+  ROM
+  RAM
+}
+Cartridge.link: layers.Cartridge
+
+Atari 2600 -> Cartridge
+
+layers: {
+Cartridge: @../d2_images/atari2600_roms.d2
+Inputs: @../d2_images/atari2600_inputs.d2
+CPU: @../d2_images/atari2600_cpu.d2
+Instructions: @../d2_images/atari2600_instructions.d2
+}
