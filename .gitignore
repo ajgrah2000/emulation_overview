@@ -1,0 +1,7 @@
+.*.swp
+book
+
+
+# Added by cargo
+
+/target

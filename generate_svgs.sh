@@ -13,3 +13,7 @@ fi
 
 
 d2 --sketch --layout=dagre d2_images/console_overview.d2 
+rm -r src/console_overview/
+mv d2_images/console_overview/ src/ 
+
+mdbook build
