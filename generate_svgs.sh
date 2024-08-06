@@ -13,7 +13,12 @@ fi
 
 
 d2 --sketch --layout=dagre d2_images/console_overview.d2 
-rm -r src/console_overview/
+if [ -d src/console_overview/ ]; then
+  rm -r src/console_overview/
+fi
 mv d2_images/console_overview/ src/ 
+cp d2_images/*.png src/console_overview/Atari2600/
+cp d2_images/*.atari src/console_overview/Atari2600/
+cp d2_images/*.nfo src/console_overview/Atari2600/
 
 mdbook build

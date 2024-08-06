@@ -2,10 +2,12 @@ Atari 2600: {
   Memory {
   }
   Audio {
-    TIA
+    link: layers.Audio
     TIA
   }
-  Graphics
+  Graphics {
+    link: layers.Graphics
+  }
   CPU {
     link: layers.CPU
     Clock
@@ -18,6 +20,11 @@ Atari 2600: {
   }
   Inputs.link: layers.Inputs
 }
+Play: |md
+  [Play](https://ajgrah2000.github.io/rusted_atari2600/)
+  [Demo](./3lb_doctor_emu.atari)
+  [Info](./3lb_doctor.nfo)
+|
 
 Cartridge: {
   ROM
@@ -32,4 +39,6 @@ Cartridge: @../d2_images/atari2600_roms.d2
 Inputs: @../d2_images/atari2600_inputs.d2
 CPU: @../d2_images/atari2600_cpu.d2
 Instructions: @../d2_images/atari2600_instructions.d2
+Audio: @../d2_images/atari2600_audio.d2
+Graphics: @../d2_images/atari2600_graphics.d2
 }

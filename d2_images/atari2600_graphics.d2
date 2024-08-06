@@ -1,0 +1,72 @@
+grid-columns:1
+description:"" {
+    grid-columns:1
+    heading:|md
+    # Atari Graphics
+    The graphics chip in the Atari2600 is the [Television Interface Adaptor (TIA)](https://en.wikipedia.org/wiki/Television_Interface_Adaptor). 
+    Which also contains the Audio.
+    
+    
+    |
+    references:|md
+        TIA Hardware information:
+            [Atari 2600 TIA Hardware Notes](https://www.atarihq.com/danb/files/TIA_HW_Notes.txt)
+            Andrew Towers
+            https://www.atarihq.com/danb/files/TIA_HW_Notes.txt
+    |
+
+    graphics_registers:|md
+    # Registers
+     - Player 0
+     - Player 1
+     - Playfield (mirror/repeat scan line)
+     - Missile 0
+     - Missile 1
+     - Ball
+    
+    Initial design intent was during the horizontal blank period of the scan line, each of the registers would be updated and the scan line draw.
+    They're essentailly counters, as the clock progresses, at the start of the counters, they draw the item (which is a single colour).
+    Balls/missiles are just solid lines of a few pixels.  The playfield and player registers have slightly more information. 
+
+    #
+    |
+
+    sdl_graphics:|md
+           # Platform Graphics - SDL2
+             - Raster graphics
+             - Super portable
+             - Stable/simple API
+             - Graphics/Audio/Input
+    |
+
+    host_graphics:|`rust
+     pub fn create_canvas(sdl_context: &mut sdl2::Sdl, name: &str, frame_width: u16, frame_height: u16, fullscreen: bool) -> Option<render::Canvas<video::Window>> {
+        let video_subsystem = sdl_context.video().unwrap();
+        let mut renderer = video_subsystem.window(name, frame_width as u32, frame_height as u32);
+
+        // Just playing with if statement (to toggle full screen)
+        let window = if fullscreen { renderer.fullscreen() } else { renderer.position_centered().resizable() };
+
+        match window.build().map_err(|e| e.to_string()) {
+            Ok(built_window) => match built_window.into_canvas().accelerated().build().map_err(|e| e.to_string()) {
+                Ok(canvas) => Some(canvas),
+                Err(e) => {
+                    println!("Error while building accelerated canvas, will leave canvas empty. {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                println!("Error while building window, will leave canvas empty. {}", e);
+                None
+            }
+        }
+    }
+
+`|
+
+    
+}
+Scanlines.link: layers.Scanlines
+layers {
+Scanlines: @../d2_images/atari2600_scanline.d2
+}

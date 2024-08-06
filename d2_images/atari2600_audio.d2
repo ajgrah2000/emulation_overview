@@ -1,0 +1,91 @@
+grid-columns:1
+
+heading:|md
+# Atari Audio
+
+The audio chip in the Atari2600 is part of the [Television Interface Adaptor (TIA)](https://en.wikipedia.org/wiki/Television_Interface_Adaptor). 
+Which also provides the graphics for the Atari.  A section of the chip is for
+audio, it's referred to as the 'Noise/Tone Generator' as is basically 2 linear
+feedback shift registers, clocked at 32050Hz.
+
+There is a 'wave form/control' register that alter the shift registers and a frequency divider.
+
+The audio circuit is duplicated, which provides 2 independent channels.
+
+# Timing
+Generally I find good emulation of sound one of the hardest/most frustrating parts.
+
+Particularly with the Atari.  Unless the emulator is always running in real time, there will be anomalies in the sound wave.
+
+As the sound chip is a polynomical counter/noise generator, it's not easy to
+just fill in the gap with the current frequencies.  Essentially, whenever the
+sound registers change a buffer is 'pre-filled' with what will be played if
+there are no more changes, and that keeps filling the host sound card.
+
+|
+
+schematic: {
+    shape:image
+    icon: ./noise_generator_snippet.png
+    link: ./noise_generator_snippet.png
+}
+
+Audio {
+  TIA
+}
+
+
+I really should of added more comments -> not_enough_documentation
+
+not_enough_documentation:|`rust
+    // Clock poly 4, return new poly4 state
+    // @staticmethod
+    pub fn poly4(audio_ctrl: u8, poly5_state: u8, poly4_state: u8) -> u8 {
+        let i = (0 == audio_ctrl & 0xF)
+            || ((0 == audio_ctrl & 0xC) && (((poly4_state & 0x3) != 0x3) && (0 != poly4_state & 0x3) && ((poly4_state & 0xF) != 0xA)))
+            || (((audio_ctrl & 0xC) == 0xC) && (0 != poly4_state & 0xC) && (0 == poly4_state & 0x2))
+            || (((audio_ctrl & 0xC) == 0x4) && (0 == poly4_state & 0x8))
+            || (((audio_ctrl & 0xC) == 0x8) && (0 == poly5_state & 0x1));
+
+        (0x7 ^ (poly4_state >> 1)) | (i as u8) << 3
+    }
+
+    // Clock poly 5, return new poly5 state
+    // @staticmethod
+    pub fn poly5(audio_ctrl: u8, poly5_state: u8, poly4_state: u8) -> u8 {
+        let in_5 = (0 == audio_ctrl & 0xF)
+            || (((0 != audio_ctrl & 0x3) || ((poly4_state & 0xF) == 0xA)) && (0 == poly5_state & 0x1F))
+            || !((((0 != audio_ctrl & 0x3) || (0 == poly4_state & 0x1)) && ((0 == poly5_state & 0x8) || (0 == audio_ctrl & 0x3))) ^ (0 != poly5_state & 0x1));
+
+        (poly5_state >> 1) | ((in_5 as u8) << 4)
+    }
+
+`|
+
+Audio is handled by SDL Audio -> sdl_audio
+
+sdl_audio:|`rust
+
+...
+    let audio_subsystem = sdl_context.audio().unwrap();
+
+        let desired_spec = audio::AudioSpecDesired {
+            freq: Some(Sound::SAMPLERATE as i32),
+            channels: Some(SDLUtility::MONO_STERO_FLAG), // mono
+            samples: Some(SDLUtility::AUDIO_SAMPLE_SIZE),
+        };
+
+        match audio_subsystem.open_queue::<soundchannel::PlaybackType, _>(None, &desired_spec) {
+
+...
+
+    if 0 == audio_steps % Atari2600::CPU_STEPS_PER_AUDIO_UPDATE {
+        // Top-up the audio queue
+        // TODO: Change this thing of beauty to something even better.
+        if self.audio_queue.is_some() {
+            let audio_queue = self.audio_queue.as_mut().expect("Optional audio not set");
+            sound::SDLUtility::top_up_audio_queue(&mut **audio_queue, |fill_size| self.core.memory.stella.get_next_audio_chunk(fill_size));
+        }
+    }
+...
+`|

@@ -41,6 +41,9 @@ jobs:
           d2 --sketch --layout=dagre d2_images/console_overview.d2
           rm -rf src/console_overview/
           mv d2_images/console_overview/ src/
+          cp d2_images/*.png src/console_overview/Atari2600/
+          cp d2_images/*.atari src/console_overview/Atari2600/
+          cp d2_images/*.nfo src/console_overview/Atari2600/
       - name: Install mdBook
         run: |
           curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf -y | sh
